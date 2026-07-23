@@ -30,8 +30,8 @@ stream_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s]: %(
 logger.addHandler(stream_handler)
 
 
-class MPG123Player:
-    """Manages the mpg123 process in remote mode (-R)."""
+class MPG321Player:
+    """Manages the mpg321 process in remote mode (-R)."""
     def __init__(self, log_path=config.MPG123_LOG_FILE):
         self.log_path = log_path
         self.process = None
@@ -45,23 +45,23 @@ class MPG123Player:
         self.reader_thread = None
         self.stderr_thread = None
         self.on_track_end_callback = None
-        self.mpg123_bin = shutil.which("mpg123") or "mpg123"
+        self.mpg_bin = shutil.which("mpg321") or "mpg321"
 
         # Initialize log file
         with open(self.log_path, "a") as f:
-            f.write(f"\n--- mpg123 session started at {time.ctime()} ---\n")
+            f.write(f"\n--- mpg321 session started at {time.ctime()} ---\n")
 
     def start(self):
-        """Starts the mpg123 background process in remote mode."""
+        """Starts the mpg321 background process in remote mode."""
         if self.process and self.process.poll() is None:
             return
 
-        cmd = [self.mpg123_bin, "-R"]
-        if config.AUDIO_OUTPUT and config.AUDIO_OUTPUT != "default":
-            cmd.extend(["-o", config.AUDIO_OUTPUT])
-        else:
-            # Explicitly request pulse or alsa to prevent mpg123 from attempting JACK connection and crashing
-            cmd.extend(["-o", "pulse,alsa"])
+        cmd = [
+            self.mpg_bin,
+            "-R",
+            "-o", "alsa",
+            "-a", "bluealsa",
+        ]
 
         try:
             self.process = subprocess.Popen(
@@ -70,36 +70,23 @@ class MPG123Player:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                bufsize=1
+                bufsize=1,
             )
-
-            time.sleep(0.1)
-            # If specified driver failed immediately, retry without -o flag
-            if self.process.poll() is not None:
-                logger.warning("mpg123 failed to start with configured driver. Retrying with basic remote mode...")
-                cmd = [self.mpg123_bin, "-R"]
-                self.process = subprocess.Popen(
-                    cmd,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    bufsize=1
-                )
 
             self.reader_thread = threading.Thread(target=self._read_output, daemon=True)
             self.reader_thread.start()
             self.stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
             self.stderr_thread.start()
-            logger.info("mpg123 process started in Remote mode.")
+            logger.info("mpg321 process started in Remote mode (alsa -> bluealsa).")
 
             # Set initial volume
             self.set_volume(self.volume)
         except Exception as e:
-            logger.error(f"Failed to start mpg123 process: {e}")
+            logger.error(f"Failed to start mpg321 process: {e}")
+
 
     def _send_command(self, cmd_str):
-        """Sends a raw string command to mpg123 stdin."""
+        """Sends a raw string command to mpg321 stdin."""
         if not self.process or self.process.poll() is not None:
             self.start()
 
@@ -148,14 +135,14 @@ class MPG123Player:
         val = max(0, min(100, int(val)))
         with self.lock:
             self.volume = val
-        self._send_command(f"VOLUME {val}")
+        self._send_command(f"GAIN {val}")
 
     def seek(self, seconds):
         """Seeks forward/backward by seconds or absolute position."""
         self._send_command(f"JUMP +{seconds}s" if seconds >= 0 else f"JUMP {seconds}s")
 
     def _read_output(self):
-        """Reads and interprets lines output by mpg123 remote mode."""
+        """Reads and interprets lines output by mpg321 remote mode."""
         if not self.process or not self.process.stdout:
             return
 
@@ -193,12 +180,12 @@ class MPG123Player:
                         was_playing = (self.state == "PLAYING")
                         self.state = "STOPPED"
                     if line_str.startswith("@E"):
-                        logger.error(f"mpg123 error frame: {line_str}")
+                        logger.error(f"mpg321 error frame: {line_str}")
                     elif was_playing and self.on_track_end_callback:
                         self.on_track_end_callback()
 
     def _read_stderr(self):
-        """Reads stderr output from mpg123 and logs warnings/errors."""
+        """Reads stderr output from mpg321 and logs warnings/errors."""
         if not self.process or not self.process.stderr:
             return
 
@@ -207,7 +194,7 @@ class MPG123Player:
                 line_str = line.strip()
                 if line_str:
                     log_file.write(f"[stderr] {line_str}\n")
-                    logger.warning(f"mpg123 stderr: {line_str}")
+                    logger.warning(f"mpg321 stderr: {line_str}")
 
     def get_status(self):
         with self.lock:
@@ -411,7 +398,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 def main():
     logger.info("Starting playerd MP3 daemon...")
 
-    player = MPG123Player()
+    player = MPG321Player()
     playlist_mgr = PlaylistManager()
     bt_mgr = BluetoothManager()
 
