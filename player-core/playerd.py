@@ -59,6 +59,9 @@ class MPG123Player:
         cmd = [self.mpg123_bin, "-R"]
         if config.AUDIO_OUTPUT and config.AUDIO_OUTPUT != "default":
             cmd.extend(["-o", config.AUDIO_OUTPUT])
+        else:
+            # Explicitly request pulse or alsa to prevent mpg123 from attempting JACK connection and crashing
+            cmd.extend(["-o", "pulse,alsa"])
 
         try:
             self.process = subprocess.Popen(
@@ -71,9 +74,9 @@ class MPG123Player:
             )
 
             time.sleep(0.1)
-            # If specified driver failed immediately, retry with default driver
-            if self.process.poll() is not None and config.AUDIO_OUTPUT and config.AUDIO_OUTPUT != "default":
-                logger.warning(f"mpg123 failed to start with driver '{config.AUDIO_OUTPUT}'. Retrying with default driver...")
+            # If specified driver failed immediately, retry without -o flag
+            if self.process.poll() is not None:
+                logger.warning("mpg123 failed to start with configured driver. Retrying with basic remote mode...")
                 cmd = [self.mpg123_bin, "-R"]
                 self.process = subprocess.Popen(
                     cmd,
