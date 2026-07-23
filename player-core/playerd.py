@@ -43,6 +43,7 @@ class MPG123Player:
         self.volume = 80
         self.lock = threading.Lock()
         self.reader_thread = None
+        self.stderr_thread = None
         self.on_track_end_callback = None
         self.mpg123_bin = shutil.which("mpg123") or "mpg123"
 
@@ -69,8 +70,24 @@ class MPG123Player:
                 bufsize=1
             )
 
+            time.sleep(0.1)
+            # If specified driver failed immediately, retry with default driver
+            if self.process.poll() is not None and config.AUDIO_OUTPUT and config.AUDIO_OUTPUT != "default":
+                logger.warning(f"mpg123 failed to start with driver '{config.AUDIO_OUTPUT}'. Retrying with default driver...")
+                cmd = [self.mpg123_bin, "-R"]
+                self.process = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1
+                )
+
             self.reader_thread = threading.Thread(target=self._read_output, daemon=True)
             self.reader_thread.start()
+            self.stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
+            self.stderr_thread.start()
             logger.info("mpg123 process started in Remote mode.")
 
             # Set initial volume
@@ -94,11 +111,18 @@ class MPG123Player:
 
     def load(self, filepath):
         """Loads and plays an MP3 / audio file."""
+        if not filepath or not os.path.exists(filepath):
+            logger.error(f"Audio file does not exist: {filepath}")
+            with self.lock:
+                self.state = "STOPPED"
+            return False
+
         with self.lock:
             self.elapsed_sec = 0.0
             self.duration_sec = 0.0
             self.state = "PLAYING"
         self._send_command(f"LOAD {filepath}")
+        return True
 
     def pause(self):
         """Toggles pause / resume."""
@@ -151,20 +175,36 @@ class MPG123Player:
                                     self.state = "PLAYING"
                         except ValueError:
                             pass
-                elif line_str.startswith("@P 0") or line_str.startswith("@P 1"):
-                    # Stopped or Paused
-                    pass
+                elif line_str.startswith("@P 1"):
+                    # Paused
+                    with self.lock:
+                        self.state = "PAUSED"
                 elif line_str.startswith("@P 2"):
                     # Playing
                     with self.lock:
                         self.state = "PLAYING"
-                elif line_str.startswith("@P 0") or "@P 0" in line_str or line_str.startswith("@E"):
-                    # Finished track
-                    if self.state == "PLAYING":
-                        with self.lock:
-                            self.state = "STOPPED"
-                        if self.on_track_end_callback:
-                            self.on_track_end_callback()
+                elif line_str.startswith("@P 0") or line_str.startswith("@E"):
+                    # Stopped / Finished track / Error
+                    was_playing = False
+                    with self.lock:
+                        was_playing = (self.state == "PLAYING")
+                        self.state = "STOPPED"
+                    if line_str.startswith("@E"):
+                        logger.error(f"mpg123 error frame: {line_str}")
+                    elif was_playing and self.on_track_end_callback:
+                        self.on_track_end_callback()
+
+    def _read_stderr(self):
+        """Reads stderr output from mpg123 and logs warnings/errors."""
+        if not self.process or not self.process.stderr:
+            return
+
+        with open(self.log_path, "a") as log_file:
+            for line in self.process.stderr:
+                line_str = line.strip()
+                if line_str:
+                    log_file.write(f"[stderr] {line_str}\n")
+                    logger.warning(f"mpg123 stderr: {line_str}")
 
     def get_status(self):
         with self.lock:
