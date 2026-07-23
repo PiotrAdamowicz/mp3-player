@@ -1,0 +1,21 @@
+[Unit]
+Description=AudioPulse MP3 Player Daemon (playerd)
+After=network.target sound.target bluetooth.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=piotek
+WorkingDirectory=/home/piotek/Work/mp3-player/player-core
+ExecStart=/usr/bin/env python3 /home/piotek/Work/mp3-player/player-core/playerd.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=HTTP_HOST=0.0.0.0
+Environment=HTTP_PORT=8080
+Environment=MUSIC_DIR=/home/piotek/Work/mp3-player/music
+Environment=LOG_DIR=/home/piotek/Work/mp3-player/logs
+Environment=WEB_UI_DIR=/home/piotek/Work/mp3-player/web-ui
+
+[Install]
+WantedBy=multi-user.target
