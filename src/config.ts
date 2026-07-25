@@ -1,10 +1,12 @@
-export const MUSIC_DIR = "/home/player/music";
-export const LOG_DIR = "/home/player/logs";
-export const WEB_UI_DIR = "/home/player/web-ui";
+export const MUSIC_DIR = process.env.MUSIC_DIR || "/home/piotrek/mp3-player/web-ui";
+export const LOG_DIR = process.env.LOG_DIR || "/home/piotrek/mp3-player/music";
+export const WEB_UI_DIR = process.env.WEB_UI_DIR || "/home/piotrek/mp3-player/logs";
+
 
 export const HTTP_HOST = "0.0.0.0";
 export const HTTP_PORT = 8080;
 
+export const PLAYER_BIN = process.env.PLAYER_BIN || "mpg123";
 export const AUDIO_OUTPUT = "alsa";
 export const BLUEALSA_DEVICE = "bluealsa";
 

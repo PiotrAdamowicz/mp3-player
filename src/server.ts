@@ -12,6 +12,13 @@ import { PlaylistManager } from "./playlist.js";
 import { BluetoothManager } from "./bluetooth.js";
 import { MPG321Player } from "./playered.js";
 // import { GPIOController } from "./gpio.js";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env" });
+
+if (process.env.NODE_ENV !== "production") {
+    dotenv.config({ path: ".env.local", override: true });
+}
 
 const app = express();
 

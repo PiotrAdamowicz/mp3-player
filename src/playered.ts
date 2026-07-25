@@ -4,7 +4,7 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { LOG_DIR, AUDIO_OUTPUT, BLUEALSA_DEVICE } from "./config.js";
+import { LOG_DIR, AUDIO_OUTPUT, BLUEALSA_DEVICE, PLAYER_BIN } from "./config.js";
 
 export type PlayerState = "PLAYING" | "PAUSED" | "STOPPED";
 
@@ -49,7 +49,7 @@ export class MPG321Player {
             args.push("-a", BLUEALSA_DEVICE);
         }
 
-        this.proc = spawn("mpg321", args);
+        this.proc = spawn(PLAYER_BIN, args);
 
         this.proc.stdout.on("data", (buf) => this.handleStdout(buf));
         this.proc.stderr.on("data", (buf) => this.handleStderr(buf));
