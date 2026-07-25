@@ -4,9 +4,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "nodemon --watch src --exec tsx src/server.ts"
+    "start:prod": "NODE_ENV=production node dist/server.js"
   },
   "keywords": [],
   "author": "",

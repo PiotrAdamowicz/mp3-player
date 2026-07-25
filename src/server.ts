@@ -13,6 +13,9 @@ import { BluetoothManager } from "./bluetooth.js";
 import { MPG321Player } from "./playered.js";
 // import { GPIOController } from "./gpio.js";
 import dotenv from "dotenv";
+import path from "node:path";
+
+console.log({ WEB_UI_DIR })
 
 dotenv.config({ path: ".env" });
 
@@ -66,6 +69,10 @@ const player = new MPG321Player();
 //             break;
 //     }
 // });
+
+app.get("/", (_req, res) => {
+    res.sendFile(path.join(WEB_UI_DIR, "index.html"));
+});
 
 // --- Basic app setup --- //
 app.use(express.json());

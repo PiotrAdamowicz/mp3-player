@@ -51,6 +51,16 @@ export class MPG321Player {
 
         this.proc = spawn(PLAYER_BIN, args);
 
+        this.proc.on("error", (err) => {
+            console.error("player process error:", err);
+            this.proc = null;
+            this.state = "STOPPED";
+        });
+
+        this.proc.stdin?.on("error", (err) => {
+            console.error("player stdin error:", err);
+        });
+
         this.proc.stdout.on("data", (buf) => this.handleStdout(buf));
         this.proc.stderr.on("data", (buf) => this.handleStderr(buf));
         this.proc.on("exit", () => {
@@ -64,13 +74,21 @@ export class MPG321Player {
     }
 
     private send(cmd: string): void {
+        if (!this.proc || this.proc.killed) return;
+        if (!this.proc.stdin || this.proc.stdin.destroyed || this.proc.stdin.writableEnded) return;
         if (!this.proc || this.proc.killed || this.proc.exitCode !== null) {
             this.start();
         }
         if (!this.proc) return;
 
         try {
-            this.proc.stdin.write(cmd + "\n");
+            this.proc.stdin.write(cmd + "\n",
+                (err) => {
+                    if (err) {
+                        console.error("write to player failed:", err);
+                    }
+                }
+            );
             this.logStream.write(`> ${cmd}\n`);
         } catch (err) {
             this.logStream.write(`Error sending command "${cmd}": ${String(err)}\n`);

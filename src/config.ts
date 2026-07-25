@@ -1,6 +1,13 @@
-export const MUSIC_DIR = process.env.MUSIC_DIR || "/home/piotrek/mp3-player/web-ui";
-export const LOG_DIR = process.env.LOG_DIR || "/home/piotrek/mp3-player/music";
-export const WEB_UI_DIR = process.env.WEB_UI_DIR || "/home/piotrek/mp3-player/logs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const MUSIC_DIR = process.env.MUSIC_DIR || "/home/piotrek/mp3-player/music";
+export const LOG_DIR = process.env.LOG_DIR || "/home/piotrek/mp3-player/logs";
+export const WEB_UI_DIR =
+    process.env.WEB_UI_DIR || path.join(__dirname, "../web-ui");
 
 
 export const HTTP_HOST = "0.0.0.0";
