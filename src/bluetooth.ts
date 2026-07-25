@@ -15,11 +15,22 @@ export interface BluetoothStatus {
 function runBluetoothctl(args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
         execFile("bluetoothctl", args, { encoding: "utf8" }, (err, stdout, stderr) => {
+            const out = stdout.trim();
+            const errText = stderr.trim();
+
             if (err) {
-                console.error("bluetoothctl error:", err, stderr);
-                return reject(err);
+                // If bluetoothctl produced usable output, keep it.
+                if (out.length > 0) {
+                    return resolve(out);
+                }
+
+                console.error("bluetoothctl error:", err, errText);
+                return reject(
+                    new Error(errText || String(err))
+                );
             }
-            resolve(stdout);
+
+            resolve(out);
         });
     });
 }
@@ -38,7 +49,7 @@ export class BluetoothManager {
             status.available = ctlOut.includes("Controller");
 
             // List paired devices
-            const pairedOut = await runBluetoothctl(["paired-devices"]);
+            const pairedOut = await runBluetoothctl(["devices Paired"]);
             status.paired_devices = this.parseDevices(pairedOut);
 
             // Find connected device (simple heuristic)

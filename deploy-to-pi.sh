@@ -53,7 +53,7 @@ mkdir -p "$STAGE_DIR/$APP_NAME"
 cp -R dist "$STAGE_DIR/$APP_NAME/"
 cp package.json package-lock.json "$STAGE_DIR/$APP_NAME/"
 
-for path in web-ui public assets; do
+for path in web-ui public assets music; do
   if [[ -e "$path" ]]; then
     cp -R "$path" "$STAGE_DIR/$APP_NAME/"
   fi
