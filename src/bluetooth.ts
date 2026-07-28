@@ -49,7 +49,7 @@ export class BluetoothManager {
             status.available = ctlOut.includes("Controller");
 
             // List paired devices
-            const pairedOut = await runBluetoothctl(["devices Paired"]);
+            const pairedOut = await runBluetoothctl(["devices", "Paired"]);
             status.paired_devices = this.parseDevices(pairedOut);
 
             // Find connected device (simple heuristic)
