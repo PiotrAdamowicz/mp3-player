@@ -1,32 +1,17 @@
-# systemd/player.service
 [Unit]
-Description=Raspberry Pi MP3 Player (Node.js)
-After=network.target sound.target
+Description=Raspberry Pi MP3 Player
+After=network-online.target sound.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-
-# Run as the 'pi' user so it has GPIO and bluealsa access.
-User=pi
-Group=pi
-
-# Set working directory to your project root (adjust if different).
-WorkingDirectory=/home/player
-
-# Path to Node and the built JS entrypoint.
-# If you use ts-node or a different entry, change this accordingly.
-ExecStart=/usr/bin/npm start
-
-# Restart if it crashes.
+User=piotrek
+Group=piotrek
+WorkingDirectory=/home/piotrek/mp3-player
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /home/piotrek/mp3-player/dist/server.js
 Restart=on-failure
 RestartSec=5
-
-# Environment (optional)
-Environment=NODE_ENV=production
-
-# It’s common on Pi GPIO apps to give access to gpio group;
-# alternatively, add the 'pi' user to 'gpio' and 'bluetooth' groups.
-# You don’t need extra systemd options for that, just user/group setup.
 
 [Install]
 WantedBy=multi-user.target
