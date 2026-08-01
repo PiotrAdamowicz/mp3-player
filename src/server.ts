@@ -1,6 +1,13 @@
 // src/server.ts
+import "./env.js";
 import express from "express";
 import type { Request, Response } from "express";
+import { PlaylistManager } from "./playlist.js";
+import { BluetoothManager } from "./bluetooth.js";
+import { MPG321Player } from "./playered.js";
+// import { GPIOController } from "./gpio.js";
+import path from "node:path";
+import { noCasheHeaders } from "./helpers/noCasheHeaders.js";
 
 import {
     MUSIC_DIR,
@@ -8,20 +15,6 @@ import {
     HTTP_HOST,
     HTTP_PORT,
 } from "./config.js";
-import { PlaylistManager } from "./playlist.js";
-import { BluetoothManager } from "./bluetooth.js";
-import { MPG321Player } from "./playered.js";
-// import { GPIOController } from "./gpio.js";
-import dotenv from "dotenv";
-import path from "node:path";
-
-console.log({ WEB_UI_DIR })
-
-dotenv.config({ path: ".env" });
-
-if (process.env.NODE_ENV !== "production") {
-    dotenv.config({ path: ".env.local", override: true });
-}
 
 const app = express();
 
@@ -101,6 +94,9 @@ app.get("/api/status", async (_req: Request, res: Response) => {
 // Playlist
 app.get("/api/playlist", (_req: Request, res: Response) => {
     const tracks = playlist.getPlaylist();
+
+    res.set(noCasheHeaders)
+
     res.json({
         status: "ok",
         count: tracks.length,
