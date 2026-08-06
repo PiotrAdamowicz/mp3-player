@@ -1,9 +1,9 @@
 // src/mpg321-player.ts
+import "./env.js";
 import { spawn } from "node:child_process";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-
 import { LOG_DIR, AUDIO_OUTPUT, BLUEALSA_DEVICE, PLAYER_BIN } from "./config.js";
 
 export type PlayerState = "PLAYING" | "PAUSED" | "STOPPED";

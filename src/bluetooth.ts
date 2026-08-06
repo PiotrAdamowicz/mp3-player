@@ -1,5 +1,6 @@
 // src/bluetooth.ts
 import { execFile } from "node:child_process";
+import { access } from "node:fs/promises";
 
 export interface BluetoothDevice {
     mac: string;
@@ -12,9 +13,40 @@ export interface BluetoothStatus {
     paired_devices: BluetoothDevice[];
 }
 
+const BLUETOOTHCTL_BIN =
+    process.env.BLUETOOTHCTL_BIN || "bluetoothctl";
+
+const BLUETOOTH_ENABLED =
+    process.env.BLUETOOTH_ENABLED !== "false";
+
+async function bluetoothctlAvailable(): Promise<boolean> {
+    if (!BLUETOOTH_ENABLED) return false;
+
+    // Absolute path case
+    if (BLUETOOTHCTL_BIN.includes("/")) {
+        try {
+            await access(BLUETOOTHCTL_BIN);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    // Name-from-PATH case
+    return new Promise((resolve) => {
+        execFile("which", [BLUETOOTHCTL_BIN], { encoding: "utf8" }, (err, stdout) => {
+            resolve(!err && stdout.trim().length > 0);
+        });
+    });
+}
+
+function isEnoentError(err: unknown): err is NodeJS.ErrnoException {
+    return !!err && typeof err === "object" && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT";
+}
+
 function runBluetoothctl(args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
-        execFile("bluetoothctl", args, { encoding: "utf8" }, (err, stdout, stderr) => {
+        execFile(BLUETOOTHCTL_BIN, args, { encoding: "utf8" }, (err, stdout, stderr) => {
             const out = stdout.trim();
             const errText = stderr.trim();
 
@@ -22,6 +54,12 @@ function runBluetoothctl(args: string[]): Promise<string> {
                 // If bluetoothctl produced usable output, keep it.
                 if (out.length > 0) {
                     return resolve(out);
+                }
+
+                if (isEnoentError(err)) {
+                    return reject(
+                        new Error("bluetoothctl is not available in this environment")
+                    );
                 }
 
                 console.error("bluetoothctl error:", err, errText);
@@ -44,9 +82,17 @@ export class BluetoothManager {
         };
 
         try {
+            const available = await bluetoothctlAvailable();
+            if (!available) {
+                return status;
+            }
             // Check controller
             const ctlOut = await runBluetoothctl(["show"]);
             status.available = ctlOut.includes("Controller");
+
+            if (!status.available) {
+                return status;
+            }
 
             // List paired devices
             const pairedOut = await runBluetoothctl(["devices", "Paired"]);
@@ -76,6 +122,11 @@ export class BluetoothManager {
 
     async connect(mac: string): Promise<[boolean, string]> {
         try {
+            const available = await bluetoothctlAvailable();
+            if (!available) {
+                return [false, "Bluetooth is not available in this environment"];
+            }
+
             const out = await runBluetoothctl(["connect", mac]);
             if (out.includes("Connection successful")) {
                 return [true, "Connection successful"];
@@ -91,6 +142,11 @@ export class BluetoothManager {
 
     async disconnect(mac: string): Promise<[boolean, string]> {
         try {
+            const available = await bluetoothctlAvailable();
+            if (!available) {
+                return [false, "Bluetooth is not available in this environment"];
+            }
+
             const out = await runBluetoothctl(["disconnect", mac]);
             if (out.includes("Successful disconnected") || out.includes("Successful disconnect")) {
                 return [true, "Disconnected"];
