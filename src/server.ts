@@ -5,7 +5,7 @@ import type { Request, Response } from "express";
 import { PlaylistManager } from "./playlist.js";
 import { BluetoothManager } from "./bluetooth.js";
 import { MPG321Player } from "./playered.js";
-// import { GPIOController } from "./gpio.js";
+import { GPIOController } from "./gpio.js";
 import path from "node:path";
 import { noCasheHeaders } from "./helpers/noCasheHeaders.js";
 
@@ -22,46 +22,46 @@ const app = express();
 const playlist = new PlaylistManager(MUSIC_DIR);
 const bluetooth = new BluetoothManager();
 const player = new MPG321Player();
-// const gpio = new GPIOController();
+const gpio = new GPIOController();
 
-// gpio.onButton((button, event) => {
-//     // React only on button press, ignore release events
-//     if (event !== "press") return;
+gpio.onButton((button, event) => {
+    // React only on button press, ignore release events
+    if (event !== "press") return;
 
-//     switch (button) {
-//         case "play":
-//             // old play_pause logic
-//             {
-//                 const status = player.getStatus();
-//                 if (status.state === "PLAYING") {
-//                     player.pause();
-//                 } else {
-//                     const track = playlist.getCurrentTrack();
-//                     if (track) player.load(track.path);
-//                 }
-//             }
-//             break;
+    switch (button) {
+        case "play":
+            // old play_pause logic
+            {
+                const status = player.getStatus();
+                if (status.state === "PLAYING") {
+                    player.pause();
+                } else {
+                    const track = playlist.getCurrentTrack();
+                    if (track) player.load(track.path);
+                }
+            }
+            break;
 
-//         case "next":
-//             {
-//                 const track = playlist.nextTrack();
-//                 if (track) player.load(track.path);
-//             }
-//             break;
+        case "next":
+            {
+                const track = playlist.nextTrack();
+                if (track) player.load(track.path);
+            }
+            break;
 
-//         case "prev":
-//             {
-//                 const track = playlist.prevTrack();
-//                 if (track) player.load(track.path);
-//             }
-//             break;
+        case "prev":
+            {
+                const track = playlist.prevTrack();
+                if (track) player.load(track.path);
+            }
+            break;
 
-//         case "stop":
-//             // you can treat STOP as stop only, or reuse play/pause if you prefer
-//             player.stop();
-//             break;
-//     }
-// });
+        case "stop":
+            // you can treat STOP as stop only, or reuse play/pause if you prefer
+            player.stop();
+            break;
+    }
+});
 
 app.get("/", (_req, res) => {
     res.sendFile(path.join(WEB_UI_DIR, "index.html"));
@@ -209,11 +209,11 @@ async function main() {
     });
 }
 
-// process.on("SIGINT", () => {
-//     gpio.close();
-//     player.quit();
-//     process.exit(0);
-// });
+process.on("SIGINT", () => {
+    gpio.close();
+    player.quit();
+    process.exit(0);
+});
 
 main().catch((err) => {
     console.error("Fatal error starting server:", err);

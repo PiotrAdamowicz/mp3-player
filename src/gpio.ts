@@ -14,6 +14,8 @@ export type ButtonEvent = "press" | "release";
 
 export type ButtonHandler = (button: ButtonName, event: ButtonEvent) => void;
 
+const GPIO_ENABLED = process.env.GPIO_ENABLED !== "false";
+
 export class GPIOController {
     private playButton: Gpio | null = null;
     private nextButton: Gpio | null = null;
@@ -22,32 +24,50 @@ export class GPIOController {
     private led: Gpio | null = null;
 
     private handler: ButtonHandler | null = null;
+    public readonly available: boolean = false;
 
     constructor() {
-        // Configure inputs with interrupt detection and simple debouncing.
-        // Assumes active‑low momentary buttons (pull‑up resistor, press pulls pin to GND).
-        // Adjust edge ("rising"/"both") if your wiring is different.
-        this.playButton = new Gpio(PLAY_BUTTON_PIN, "in", "falling", {
-            debounceTimeout: 50,
-        });
-        this.nextButton = new Gpio(NEXT_BUTTON_PIN, "in", "falling", {
-            debounceTimeout: 50,
-        });
-        this.prevButton = new Gpio(PREV_BUTTON_PIN, "in", "falling", {
-            debounceTimeout: 50,
-        });
-        this.stopButton = new Gpio(STOP_BUTTON_PIN, "in", "falling", {
-            debounceTimeout: 50,
-        });
-        //TODO: vol_up and vol_down can be added similarly if needed.
-
-        // Optional LED for status.
-        if (typeof LED_PIN === "number") {
-            this.led = new Gpio(LED_PIN, "out");
-            this.led.writeSync(0); // LED off at startup
+        if (!GPIO_ENABLED) {
+            console.log("GPIO disabled via GPIO_ENABLED environment variable.");
+            return;
         }
 
-        this.wireButtonEvents();
+        if (!Gpio.accessible) {
+            console.warn("GPIO is not accessible in this environment. GPIOController disabled.");
+            return;
+        }
+
+        try {
+            // Configure inputs with interrupt detection and simple debouncing.
+            // Assumes active‑low momentary buttons (pull‑up resistor, press pulls pin to GND).
+            // Adjust edge ("rising"/"both") if your wiring is different.
+            this.playButton = new Gpio(PLAY_BUTTON_PIN, "in", "falling", {
+                debounceTimeout: 50,
+            });
+            this.nextButton = new Gpio(NEXT_BUTTON_PIN, "in", "falling", {
+                debounceTimeout: 50,
+            });
+            this.prevButton = new Gpio(PREV_BUTTON_PIN, "in", "falling", {
+                debounceTimeout: 50,
+            });
+            this.stopButton = new Gpio(STOP_BUTTON_PIN, "in", "falling", {
+                debounceTimeout: 50,
+            });
+            //TODO: vol_up and vol_down can be added similarly if needed.
+
+            // Optional LED for status.
+            if (typeof LED_PIN === "number") {
+                this.led = new Gpio(LED_PIN, "out");
+                this.led.writeSync(0); // LED off at startup
+            }
+
+            this.wireButtonEvents();
+            this.available = true;
+        } catch (err) {
+            console.error("Failed to initialize GPIO pins:", err);
+            this.close();
+            this.available = false;
+        }
     }
 
     private wireButtonEvents(): void {
@@ -87,8 +107,12 @@ export class GPIOController {
      * Control the status LED (if configured).
      */
     setLed(on: boolean): void {
-        if (!this.led) return;
-        this.led.writeSync(on ? 1 : 0);
+        if (!this.available || !this.led) return;
+        try {
+            this.led.writeSync(on ? 1 : 0);
+        } catch (err) {
+            console.error("Error setting LED:", err);
+        }
     }
 
     /**
